@@ -53,7 +53,7 @@ app.post("/post", upload.single("file"), (req, res)=>{
     const fileName = req.file.originalname
 
     const response = memoryStorage.get(fileName)===undefined?
-    "File recieved and stored":`File ${fileName} already exists, please select a unique name`
+    `${fileName} recieved and stored`:`${fileName} already exists, please select a unique name`
 
     memoryStorage.set(fileName,memoryStorage.get(fileName)===undefined?
     {duration: req.body.duration, added:req.body.added, data: req.file}:memoryStorage.get(fileName))

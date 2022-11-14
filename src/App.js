@@ -1,5 +1,5 @@
-import logo from './logo.svg';
 import './App.css';
+import { useState } from 'react';
 
 function App() {
 
@@ -52,7 +52,6 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
         <h2>Search for file Info</h2>
         <input  onChange={(e)=>{setSearchName(e.target.value)}}  type={"text"} name={"fileName"}></input><br></br>
         <button onClick={()=>{queryName()}}>Search</button><br></br>
@@ -72,7 +71,6 @@ function App() {
         <input  onChange={(e)=>{setSearchDataName(e.target.value)}}  type={"text"} name={"fileName"}></input><br></br>
         <button onClick={()=>{queryData()}}>Search</button><br></br>
         <strong>{searchData===""?"":searchData.response}</strong>
-      </header>
     </div>
   );
 }
