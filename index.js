@@ -17,7 +17,7 @@ app.get(`/list`, (req,res)=>{
     const maxDur = req.query.maxduration
     let songs = Array.from(memoryStorage.values())
     console.log(songs)
-    songs = songs.filter(song => song.duration <=  maxDur).map(song => song.data.originalname)
+    songs = songs.filter(song => parseInt(song.duration) <=  maxDur).map(song => song.data.originalname)
     
     const response = songs.length ===0?
     "Sorry, no files found":`Found ${songs.length} files that match requirments`
