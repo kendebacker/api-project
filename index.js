@@ -1,24 +1,47 @@
 const express = require("express");
 const multer = require('multer');
 const cors = require('cors')
-const PORT = 8080
-const upload = multer()
+const fs = require('fs')
+const PORT = 8082
 const app = express()
 app.use(cors())
 
 const memoryStorage = new Map()
+let memory = ``
 
-app.listen(
-    PORT, ()=> console.log('Running...')
+
+app.listen(PORT,  ()=> {
+        memory =  fs.readFileSync("./Storage/memory.txt",  'utf-8')
+        const midway = memory.replace(/ /g,"").split("$:$").map(el => el.split("$?"))
+        midway.forEach((el,ind)=> memoryStorage.set(el[0], {name: el[0], duration: el[2], added: el[1]}))
+        console.log(memoryStorage)
+        console.log('Running...')}
 )
+
+
+
+// from Deepgram example
+const storage = multer.diskStorage({
+    filename: function (req, file, callback) {
+        if(memoryStorage.get(file.originalname)===undefined){
+            callback(null, file.originalname)
+        }else{
+            callback(null, "discard.wav")
+        }
+    },
+    destination: function (req, file, callback) {
+            callback(null, './Storage')
+    }
+})
+  
+const upload = multer({ storage })
 
 app.get(`/list`, (req,res)=>{
 
     const maxDur = req.query.maxduration
     let songs = Array.from(memoryStorage.values())
-    console.log(songs)
-    songs = songs.filter(song => parseInt(song.duration) <=  maxDur).map(song => song.data.originalname)
-    
+    songs = songs.filter(song => parseInt(song.duration) <=  maxDur).map(song => song.name)
+
     const response = songs.length ===0?
     "Sorry, no files found":`Found ${songs.length} files that match requirments`
 
@@ -31,33 +54,35 @@ app.get(`/info`, (req,res)=>{
     const response = memoryStorage.get(req.query.name)===undefined?
     `Could not find file with name ${req.query.name}`:`The info for file ${req.query.name}`
 
-    const fileInfo = memoryStorage.get(req.query.name)===undefined?"":memoryStorage.get(req.query.name)
-    const data = fileInfo===""?"":{...fileInfo.data, duration: fileInfo.duration, added: fileInfo.added}
-    delete data.buffer
-    
-    res.json({response: response, data: data})
+    const fileInfo = memoryStorage.get(req.query.name)===undefined?
+    "":memoryStorage.get(req.query.name)
+
+    res.json({response: response, data: fileInfo})
 
 })
 
 app.get(`/download`, (req,res)=>{
-
-    const response = memoryStorage.get(req.query.name)===undefined?
-    `Could not find file with name ${req.query.name}`:`The data for file ${req.query.name}`
-
-    const data = memoryStorage.get(req.query.name)===undefined?"":memoryStorage.get(req.query.name).data
-
-    res.json({response: response, data: data})
+    if(memoryStorage.get(req.query.name)!==undefined){
+        res.download(`Storage/${req.query.name}`, req.query.name)
+    }else{
+        res.status(404).send(`${req.query.name} not found`)
+    }
 })
 
 app.post("/post", upload.single("file"), (req, res)=>{
-    const fileName = req.file.originalname
+        const fileName = req.file.originalname
 
-    const response = memoryStorage.get(fileName)===undefined?
-    `${fileName} recieved and stored`:`${fileName} already exists, please select a unique name`
+        const response = memoryStorage.get(fileName)===undefined?
+        `${fileName} recieved and stored`:`${fileName} already exists, please select a unique name`
 
-    memoryStorage.set(fileName,memoryStorage.get(fileName)===undefined?
-    {duration: req.body.duration, added:req.body.added, data: req.file}:memoryStorage.get(fileName))
+        const newPeice = memoryStorage.get(fileName)===undefined?
+        `${fileName}$?${Date.now()}$?${req.body.duration}`:""
 
-    res.json({response: response})
-    
+        memoryStorage.set(fileName,memoryStorage.get(fileName)===undefined?
+        {name: fileName, duration: req.body.duration, added: Date.now(), path: req.file.path}:memoryStorage.get(fileName))
+        console.log(req.file.path)
+        memory = `${memory}${newPeice}$:$`
+        fs.writeFileSync("./Storage/memory.txt", memory)
+        res.json({response: response})
 })
+
