@@ -4,7 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
-/Storage
+Storage/*
+!Storage/memory.txt 
 # testing
 /coverage
 

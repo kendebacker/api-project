@@ -21,25 +21,25 @@ function App() {
     formData.append("duration", duration)
     formData.append("added", Date.now())
     const data = {method: 'POST', body: formData,  }
-    fetch('http://localhost:8082/post', data)
+    fetch('http://localhost:8080/post', data)
     .then(res => res.json())
     .then(res => setResponse(res.response))
   }
 
   const queryName=()=>{
-    fetch(`http://localhost:8082/info?name=${searchName}`)
+    fetch(`http://localhost:8080/info?name=${searchName}`)
     .then(res => res.json())
     .then(res => setNameQuery(res))
   }
 
   const queryDuration=()=>{
-    fetch(`http://localhost:8082/list?maxduration=${searchDuration}`)
+    fetch(`http://localhost:8080/list?maxduration=${searchDuration}`)
     .then(res => res.json())
     .then(res => setDurationQuery(res))
   }
 
   const queryData=()=>{
-    fetch(`http://localhost:8082/download?name=${searchDataName}`)
+    fetch(`http://localhost:8080/download?name=${searchDataName}`)
     .then(res => {return res.ok?res.blob():Promise.reject(res)})
     .then(res => {
       setSearchData(`${searchDataName} downloading`)
