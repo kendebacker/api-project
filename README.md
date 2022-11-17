@@ -1,1 +1,1 @@
-Project contains my api which queries, stores, and retrieves files locally. It also has a React UI to interact with it.
+My api which queries, stores, and retrieves files locally. It also has a React UI to interact with it.
