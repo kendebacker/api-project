@@ -1,1 +1,1 @@
-My api that allows for local storage and retrieval of files, as well as querying files stored. Also has React UI as well.
+Project contains my api which queries, stores, and retrieves files locally. It also has a React UI to interact with it.
