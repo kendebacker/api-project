@@ -18,48 +18,49 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter =(req, file, callback) =>{
-    // Check if file present already, if so don't import
-    callback(null, mapMemory.get(file.originalname)===undefined)
+    // Check if file present already/ correct extension
+    const extenstion = file.originalname.split(".")
+    callback(null, mapMemory.get(file.originalname)===undefined && extenstion.length==2 && extenstion[1]==="wav")
 }
   
 const upload = multer({fileFilter, storage })
-const mapMemory = new Map()
-let writeMemory = ``
+let mapMemory = null
 
-app.listen(PORT,  ()=> {
+app.listen(PORT,  async ()=> {
     // Create map of existing files already present with basic information for querying
-    writeMemory =  fs.readFileSync("./Storage/memory.txt",  'utf-8')
-    const midway = writeMemory.split("$:$").map(el => el.split("$?"))
-    midway.forEach((el,ind)=> mapMemory.set(el[0], 
-        {name: el[0], duration: parseInt(el[2]), added: el[1], path: `./Storage/${el[0]}`}))
-    mapMemory.delete("")
-    console.log('Running...')
+    fs.readFile("./Storage/memory.json",  'utf8', (err, data) =>{
+        if(err){
+            throw err
+        }
+        mapMemory = data===""?new Map():new Map(Object.entries(JSON.parse(data)));
+        console.log("Running...")
+    })
 })
 
 app.get(`/list`, (req,res)=>{
     // Query map based on duration, return array of names
     const maxDur = req.query.maxduration
-    let files = Array.from(mapMemory.values())
-    files = files.filter(file => file.duration <=  maxDur).map(file => file.name)
+    const files = Array.from(mapMemory.values()).filter(file => file.duration <=  maxDur).map(file => file.name)
     const response = files.length ===0?"No files found":`Found ${files.length} files`
-    res.json({response: response, data: files})
+    res.status(200).json({body: response, data: files})
 })
 
 app.get(`/info`, (req,res)=>{
     // Query map based on key name (file name), return file object
-    const fileName = req.query.name
-    const response = mapMemory.get(fileName)===undefined?`No info for ${fileName}`:`Info for ${fileName}`
-    const fileInfo = mapMemory.get(fileName)===undefined?"":mapMemory.get(fileName)
-    res.json({response: response, data: fileInfo})
+    const fileName  = req.query.name
+    const noFile = mapMemory.get(fileName)===undefined
+    const response = noFile?`No file info found`:`File info retrieved`
+    const fileInfo = noFile?"":mapMemory.get(fileName)
+    res.status(noFile?400:200).json({body: response, data: fileInfo})
 })
 
 app.get(`/download`, (req,res)=>{
     // See if file present in map, if so download if not throw error.
     const fileName = req.query.name
     if(mapMemory.get(fileName)!==undefined){
-        res.download(`Storage/${fileName}`, fileName)
+        res.status(200).download(`${mapMemory.get(fileName).path}`, fileName)
     }else{
-        res.status(404).send(`${fileName} not found`)
+        res.status(400).json({body:`File not found`})
     }
 })
 
@@ -69,11 +70,12 @@ app.post("/post", upload.single("file"), (req, res)=>{
         getAudioDurationInSeconds(req.file.path).then(dur => {
             const currentDay = new Date().toLocaleDateString()
             const fileName = req.file.originalname
-            const newPeice = `${fileName}$?${currentDay}$?${dur}`
             mapMemory.set(fileName,{name: fileName, duration: dur, added: currentDay, path: req.file.path})
-            writeMemory = `${writeMemory}${newPeice}$:$`
-            fs.writeFileSync("./Storage/memory.txt", writeMemory)
-        })
+            fs.writeFile("./Storage/memory.json", JSON.stringify(Object.fromEntries(mapMemory)), (err)=>{
+                res.status(err?500:200).json({body: err?`Error storing data: ${err}`:"File succesfully stored"})
+            })
+        }).catch((err) => res.status(500).json({body: `Error getting duration: ${err}`}))
+    }else{
+        res.status(400).json({body: `File already exists or incorrect extension`})
     }
-    res.json({response: req.file === undefined?"File already exists":"File stored"})
 })
