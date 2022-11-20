@@ -7,13 +7,26 @@ const app = express()
 const { getAudioDurationInSeconds } = require('get-audio-duration')
 app.use(cors())
 
+let mapMemory = null
+
+app.listen(PORT,  async ()=> {
+    // Create map of existing files already present with basic information for querying
+    fs.readFile("./storage/memory.json",  'utf8', (err, data) =>{
+        if(err){
+            console.log(err)
+        }
+        mapMemory = data===""?new Map():new Map(Object.entries(JSON.parse(data)));
+        console.log("Running...")
+    })
+})
+
 const storage = multer.diskStorage({
     // Save file to Storage folder
     filename: (req, file, callback)=>{
         callback(null, file.originalname)
     },
     destination: (req, file, callback)=>{
-        callback(null, "./Storage")
+        callback(null, "./storage")
     }
 })
 
@@ -23,17 +36,23 @@ const fileFilter =(req, file, callback) =>{
     callback(null, mapMemory.get(file.originalname)===undefined && extenstion.length==2 && extenstion[1]==="wav")
 }
   
-const upload = multer({fileFilter, storage })
-let mapMemory = null
+const upload = multer({fileFilter: fileFilter, storage: storage, limits: {fileSize: 10000000}}).single("file")
 
-app.listen(PORT,  async ()=> {
-    // Create map of existing files already present with basic information for querying
-    fs.readFile("./Storage/memory.json",  'utf8', (err, data) =>{
-        if(err){
-            throw err
+app.post("/post", (req, res)=>{
+    // check if file meets standards/is already present
+    upload(req, res, (err)=>{
+        if(err || req.file === undefined){
+            res.status(400).json({body: `File already exists, is to large, or is improperly formated`})
+        }else{
+            getAudioDurationInSeconds(req.file.path).then(dur => {
+                const currentDay = new Date().toLocaleDateString()
+                const fileName = req.file.originalname
+                mapMemory.set(fileName,{name: fileName, duration: dur, dateAdded: currentDay, path: req.file.path})
+                fs.writeFile("./storage/memory.json", JSON.stringify(Object.fromEntries(mapMemory)), (err)=>{
+                    res.status(err?500:200).json({body: err?`Error storing data: ${err}`:"File succesfully stored"})
+                })
+            }).catch((err) => res.status(500).json({body: `Error getting duration: ${err}`}))
         }
-        mapMemory = data===""?new Map():new Map(Object.entries(JSON.parse(data)));
-        console.log("Running...")
     })
 })
 
@@ -64,18 +83,3 @@ app.get(`/download`, (req,res)=>{
     }
 })
 
-app.post("/post", upload.single("file"), (req, res)=>{
-    // Check if file present, if so don't store in map, if not store in map
-    if(req.file !== undefined){
-        getAudioDurationInSeconds(req.file.path).then(dur => {
-            const currentDay = new Date().toLocaleDateString()
-            const fileName = req.file.originalname
-            mapMemory.set(fileName,{name: fileName, duration: dur, added: currentDay, path: req.file.path})
-            fs.writeFile("./Storage/memory.json", JSON.stringify(Object.fromEntries(mapMemory)), (err)=>{
-                res.status(err?500:200).json({body: err?`Error storing data: ${err}`:"File succesfully stored"})
-            })
-        }).catch((err) => res.status(500).json({body: `Error getting duration: ${err}`}))
-    }else{
-        res.status(400).json({body: `File already exists or incorrect extension`})
-    }
-})

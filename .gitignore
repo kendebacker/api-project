@@ -5,7 +5,7 @@
 /.pnp
 .pnp.js
 Storage/*
-!Storage/memory.txt 
+!Storage/memory.json 
 # testing
 /coverage
 
