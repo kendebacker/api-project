@@ -36,7 +36,7 @@ const fileFilter =(req, file, callback) =>{
     callback(null, mapMemory.get(file.originalname)===undefined && extenstion.length==2 && extenstion[1]==="wav")
 }
   
-const upload = multer({fileFilter: fileFilter, storage: storage, limits: {fileSize: 10000000}}).single("file")
+const upload = multer({fileFilter: fileFilter, storage: storage, limits: {fileSize: 3000000}}).single("file")
 
 app.post("/post", (req, res)=>{
     // check if file meets standards/is already present
@@ -47,9 +47,9 @@ app.post("/post", (req, res)=>{
             getAudioDurationInSeconds(req.file.path).then(dur => {
                 const currentDay = new Date().toLocaleDateString()
                 const fileName = req.file.originalname
-                mapMemory.set(fileName,{name: fileName, duration: dur, dateAdded: currentDay, path: req.file.path})
+                mapMemory.set(fileName, {name: fileName, duration: dur, dateAdded: currentDay, path: req.file.path})
                 fs.writeFile("./storage/memory.json", JSON.stringify(Object.fromEntries(mapMemory)), (err)=>{
-                    res.status(err?500:200).json({body: err?`Error storing data: ${err}`:"File succesfully stored"})
+                    res.status(err?500:200).json({body: err ?`Error storing data: ${err}`:`${fileName} succesfully stored`})
                 })
             }).catch((err) => res.status(500).json({body: `Error getting duration: ${err}`}))
         }
@@ -59,9 +59,14 @@ app.post("/post", (req, res)=>{
 app.get(`/list`, (req,res)=>{
     // Query map based on duration, return array of names
     const maxDur = req.query.maxduration
-    const files = Array.from(mapMemory.values()).filter(file => file.duration <=  maxDur).map(file => file.name)
-    const response = files.length ===0?"No files found":`Found ${files.length} files`
-    res.status(200).json({body: response, data: files})
+    if(!isNaN(maxDur) && !isNaN(parseFloat(maxDur))){
+        const files = Array.from(mapMemory.values()).filter(file => file.duration <=  parseFloat(maxDur)).map(file => file.name)
+        const response = files.length ===0?"No files found":`Found ${files.length} files`
+        res.status(200).json({body: response, data: files})
+    }else{
+        res.status(400).json({body: "Query is not properly formatted", data: []})
+    }
+
 })
 
 app.get(`/info`, (req,res)=>{
@@ -79,7 +84,7 @@ app.get(`/download`, (req,res)=>{
     if(mapMemory.get(fileName)!==undefined){
         res.status(200).download(`${mapMemory.get(fileName).path}`, fileName)
     }else{
-        res.status(400).json({body:`File not found`})
+        res.status(400).json({body: "File not found"})
     }
 })
 
