@@ -1,1 +1,1 @@
-An api project which queries, stores, and retrieves files locally. It also has a React UI to interact with it.
+An API project built using Express. API queries, stores, and retrieves files locally, file storage handled by [Multer](https://www.npmjs.com/package/multer) package. Project also has a React UI to interact with the API.
